@@ -1,3 +1,4 @@
 # mozbiogeo
 Code for exploring biogeography of Mozambique
-![alt text](png/dendrograma1.png "dendrogram")
+
+![alt tag](https://github.com/PauloEduardoCardoso/mozbiogeo/blob/master/png/clu6bigfauna.png "dendrogram")
