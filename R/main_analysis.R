@@ -1,5 +1,5 @@
-#' Biogeo Analysis - Cluster hierarquico
-#' ---A Explorar!---
+#' Biogeo Analysis - Hierarchical Cluster Analysis
+#' ---to explore!---
 #' http://www.r-bloggers.com/r-user-group-recap-heatmaps-and-using-the-caret-package/
 #' http://addictedtor.free.fr/packages/A2R/lastVersion/R/code.R
 #' http://stackoverflow.com/questions/8197559/emulate-ggplot2-default-color-palette
@@ -10,13 +10,13 @@
 #' http://www.girafamania.com.br/introducao/aprendendo_animais_antilopes.html
 #' http://www.oocities.org/vila_luisa/Fauna_Especies.htm
 #' 
-#' Packages ------------------------------------------------------------------- 
+#' Load Packages -------------------------------------------------------------- 
 kpacks <- c('dplyr', 'tidyr', 'rgdal', 'vegan', 'cluster'
             , 'reshape2', 'betapart', 'labdsv', 'magrittr'
             , 'ggplot2', 'dendextend', 'fuzzySim', 'ggdendro', 'colorspace'
             , 'FactoMineR'
             , 'RColorBrewer'
-            ,'gridExtra')
+            , 'gridExtra')
 new.packs <- kpacks[!(kpacks %in% installed.packages()[ ,"Package"])]
 if(length(new.packs)) install.packages(new.packs)
 lapply(kpacks, require, character.only=T)
@@ -25,13 +25,15 @@ remove(kpacks, new.packs)
 #' Local Folders Paulo: alterar para dados locais
 wd_dados <- 'D:/Programacao/biogeo/data'
 wd_geo <- 'D:/SIG/MozBiogeo/shp'
-wd_geo <- 'G:/SIG/MozBiogeo/shp' # drive ext
+wd_geo <- 'G:/SIG/MozBiogeo/shp' # pcardoso external drive
 
 #' Local Folders CARLOS: alterar para dados locais
 wd_dados <- 'C:/Users/Carlos Bento/Google Drive/biogeo/data' # Estou aqui!!
 wd_geo <- 'C:/Users/Carlos Bento/Google Drive/biogeo/geodata/vetor'
 
-#' dados de distribuicao <- check data.R:data0
+#' Distribution Data <- check_data.R:data0 ------------------------------------
+#' Rely on dataframe obtained with check_data.R script that
+#' will run some diagnostics
 data0
 #' Ler a grelha 0.5 graus -----------------------------------------------------
 gr <- rgdal::readOGR(dsn= file.path(wd_geo), layer='MOZ_grid050g')
