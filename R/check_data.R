@@ -1,10 +1,10 @@
 #' Install and load R Packages ------------------------------------------------
-kpacks <- c('dplyr', 'raster', 'rgdal', 'ggplot2', 'mapproj', 'MODISTools')
-new.packs <- kpacks[!(kpacks %in% installed.packages()[ ,"Package"])]
-if(length(new.packs)) install.packages(new.packs)
-lapply(kpacks, require, character.only=T)
-remove(kpacks, new.packs)
-
+kpacks <- c('dplyr', 'tidyr', 'rgdal', 'vegan', 'cluster'
+            , 'reshape2', 'betapart', 'labdsv', 'magrittr'
+            , 'ggplot2', 'dendextend', 'fuzzySim', 'ggdendro', 'colorspace'
+            , 'FactoMineR'
+            , 'RColorBrewer'
+            , 'gridExtra')
 #' Local folder: Alterar para a pasta local do Drive -------------------
 wd_dados <- 'D:/Dropbox/programacao/mozbiogeo_data' # Estou aqui!!
 wd_geo <- 'D:/Sig/MozBiogeo/shp'
@@ -54,6 +54,7 @@ write.table(data0, file = file.path(wd_data, 'fauna_12_7_2015_rev1_R.txt')
 moz <- raster::getData(name='GADM', country='MOZ', level=1, download = T)
 proj4string(moz) <- CRS('+init=epsg:4326')
 moz@data$NAME_1[moz@data$NAME_1 == 'Nassa'] <- 'Niassa'
+moz@data$NAME_1[moz@data$NAME_1 == 'Maputo City'] <- 'Maputo'
 
 #' Exportar shapefile GADM: !sao os mesmos dos nossos mapas GADM
 #' Grava o shapefile pasta D:/ no disco local. Alterar!
@@ -76,22 +77,6 @@ ggplot(data = mozdf, aes(x = long, y = lat, group = group)) +
   coord_map() +
   theme_bw()
 
-#' Create SPDF object for Observations ----------------------------------------
-dadosg <- as.data.frame(data0)
-coordinates(dadosg) <- ~longitude+latitude
-proj4string(dadosg) <- CRS('+init=epsg:4326')
-writeOGR(dadosg, dsn='S:/Mozambique/MozBiogeo/data', layer = 'dadosg'
-         , driver="ESRI Shapefile", overwrite_layer=T)
-length(
-  unique(dadosg@data$idu)
-)
-
-#' Overlay dos dados aos temas vetoriais --------------------------------------
-p1 <- as.data.frame(sp::over(dadosg, moz[,'NAME_1']))
-data0$provincia <- p1[ ,1]
-p2 <- as.data.frame(sp::over(dadosg, pa[,'name']))
-data0$aprotegida <- p2[ ,1]
-
 #' Taxonomy: Basic info for taxonomic manipulation ----------------------------
 tax0 <- read.csv(file.path(wd_dados, 'taxonomia54.csv'), header = T, sep = ','
                    ,stringsAsFactors = F)
@@ -103,7 +88,8 @@ write.table(
     dplyr::summarise(n=sum(number, na.rm = F)) %>%
     dplyr::arrange(desc(n)) %>%
     head(10)
-  , file = 'clipboard', sep = '\t', row.names = F)
+  , file = file.path(wd_dados, 'top10.txt'), sep = '\t', row.names = F
+  )
 
 data0 %>%
   #select_('id', 'species') %>%
@@ -124,7 +110,7 @@ data0 %>%
   geom_bar(stat="identity") +
   #facet_grid(.~grupo, scales = 'free') +
   theme_classic() +
-  theme(axis.text.x=element_text(hjust = 0.3, vjust = -0.1
+  theme(axis.text.x=element_text(hjust = 0.3, vjust = 0.3
                                  , angle=90 + 1e-01))+
   labs(y='N. indivíduos', x='Espécie'
        #, title = 'Carnívoros'
@@ -137,79 +123,14 @@ ggsave(last_plot()
        , units = 'cm',
        dpi=300)
 
-#' Sumario dos Dados por Provincia --------------------------------------------
-sp_prov <- as.data.frame(data0 %>%
-                           dplyr::group_by(provincia) %>%
-                           dplyr::summarise(nind = sum(number, na.rm = F),
-                                            nesp = length(unique(esp))) %>%
-                           dplyr::arrange(desc(nind)) %>%
-                           filter(complete.cases(.))%>%
-                           #filter(nind>1000) %>%
-                           tidyr::gather(provincia))
-names(sp_prov)[2] <- 'var'
-ggplot(aes(x=reorder(provincia, -value), y=value), data=sp_prov) +
-  geom_bar(stat="identity") +
-  facet_grid(var ~., scales = 'free') +
-  theme(axis.text.x=element_text(vjust = .2, angle=90))+
-  labs(x='Províncias', y='N')
+#' --------------------------- SPATIAL DATA -----------------------------------
 
-
-#' Exporta o plot como imagem PNG para a pasta indicada no filename
-ggsave(last_plot()
-       , filename = 'D:/Programacao/biogeo/apresentacao/hist_nind_prov.png'
-       , width = 7.13
-       , height = 8
-       , units = 'cm',
-       dpi=300)
-
-#' Dados por AP ---------------------------------------------------------------
-sp_aprot <- as.data.frame(data0 %>%
-                            dplyr::group_by(aprotegida) %>%
-                            dplyr::summarise(nind = sum(number, na.rm = F),
-                                             nesp = length(unique(esp))) %>%
-                            dplyr::arrange(desc(nind)) %>%
-                            filter(complete.cases(.))%>%
-                            filter(nesp>23) %>%
-                            tidyr::gather(aprotegida))
-names(sp_aprot)[2] <- 'var'
-ggplot(aes(x=reorder(aprotegida, -value), y=value), data=sp_aprot) +
-  geom_bar(stat="identity") +
-  facet_grid(var ~., scales = 'free') +
-  theme(axis.text.x=element_text(vjust = .2, angle=90)) +
-  labs(x='Área Protegida', y='N') + 
-  scale_x_discrete(breaks = sp_aprot$aprotegida[1:(nrow(sp_aprot)/2)]
-                   , labels=c("Niassa","Marromeu","C Of11","C Of10","C Of12"))
-
-#' Exporta o plot como imagem PNG para a pasta indicada no filename
-ggsave(last_plot()
-       , filename = 'D:/Programacao/biogeo/apresentacao/hist_nind_ap.png'
-       , width = 7.13
-       , height = 8
-       , units = 'cm',
-       dpi=300)
-
-#' Dados por Quad -------------------------------------------------------------
-sp_grid <- as.data.frame(dadosg@data %>%
-                           dplyr::group_by(idu) %>%
-                           dplyr::summarise(nind = sum(number, na.rm = F),
-                                            nesp = length(unique(esp))) %>%
-                           dplyr::arrange(desc(nind)) %>%
-                           #filter(complete.cases(.))%>%
-                           #filter(nesp>2) %>%
-                           tidyr::gather(idu)
+#' Create SPDF object for Observations ----------------------------------------
+dadosg <- as.data.frame(data0)
+coordinates(dadosg) <- ~longitude+latitude
+proj4string(dadosg) <- CRS('+init=epsg:4326')
+writeOGR(dadosg, dsn='S:/Mozambique/MozBiogeo/data', layer = 'dadosg'
+         , driver="ESRI Shapefile", overwrite_layer=T)
+length(
+  unique(dadosg@data$idu)
 )
-names(sp_grid)[2] <- 'var'
-
-spnind_quad <- idu %>% 
-  left_join(as.data.frame(dadosg@data %>%
-                            dplyr::group_by(idu) %>%
-                            dplyr::summarise(nind = sum(number, na.rm = F),
-                                             nesp = length(unique(esp)))),
-            by=c('idu' = 'idu')) %>%
-  mutate(nesp=ifelse(is.na(nesp),0, nesp),
-         nind=ifelse(is.na(nind),0, nind))
-write.csv(spnind_quad, file = 'D:/Programacao/biogeo/data/nspgrid05.csv')
-
-nrow(spnind_quad[spnind_quad$nesp == 0,])/nrow(spnind_quad)
-
-
