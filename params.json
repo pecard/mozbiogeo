@@ -1,6 +1,6 @@
 {
-  "name": "Mozbiogeo",
-  "tagline": "Biogeography of Mozambique",
-  "body": "# mozbiogeo\r\nCode for exploring biogeography of Mozambique\r\n\r\n![alt tag](https://github.com/PauloEduardoCardoso/mozbiogeo/blob/master/png/clu6bigfauna.png \"dendrogram\")\r\n",
+  "name": "Moz_biogeo",
+  "tagline": "Biogeography of Mozambique Fauna",
+  "body": "# moz_biogeo\r\nScripting for exploratory analysis on biogeography of Mozambique fauna.\r\n",
   "note": "Don't delete this file! It's used internally to help with page regeneration."
 }
