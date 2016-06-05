@@ -1,12 +1,14 @@
 #' http://gsif.r-forge.r-project.org/
 #' 
+
+#' Install and load R Packages ------------------------------------------------
 kpacks <- c('dplyr', 'raster', 'rgdal', 'dismo')
 new.packs <- kpacks[!(kpacks %in% installed.packages()[ ,"Package"])]
 if(length(new.packs)) install.packages(new.packs)
 lapply(kpacks, require, character.only=T)
 remove(kpacks, new.packs)
 
-#'# Grelha 0.5 graus WGS84 -> UTM36S -------------------------------------------
+#'# Grid 0.5 graus WGS84 -> UTM36S -------------------------------------------
 gr <- rgdal::readOGR(dsn= file.path(wd_geo), layer='MOZ_grid050g')
 proj4string(gr) <- CRS('+init=epsg:4326')
 gr050utm <- sp::spTransform(gr, CRS('+init=EPSG:32736'))

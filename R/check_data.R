@@ -4,14 +4,23 @@ kpacks <- c('dplyr', 'tidyr', 'rgdal', 'vegan', 'cluster'
             , 'ggplot2', 'dendextend', 'fuzzySim', 'ggdendro', 'colorspace'
             , 'FactoMineR'
             , 'RColorBrewer'
-            , 'gridExtra')
+            , 'gridExtra'
+            , 'lubridate')
+new.packs <- kpacks[!(kpacks %in% installed.packages()[ ,"Package"])]
+if(length(new.packs)) install.packages(new.packs)
+lapply(kpacks, require, character.only=T)
+remove(kpacks, new.packs)
+
+#' Session Data
+#' /mozbiogeo_data/biogeo.RData
 #' Local folder: Alterar para a pasta local do Drive -------------------
 wd_dados <- 'D:/Dropbox/programacao/mozbiogeo_data' # Estou aqui!!
 wd_geo <- 'D:/Sig/MozBiogeo/shp'
 
 #' Ler a base de dados de fauna em .csv [comma delimited] ---------------------
-data0 <- read.csv(file.path(wd_dados, 'fauna_12_7_2015_rev1.csv')
-                  ,header = T, dec = '.', stringsAsFactors = F)
+data0 <- read.table(file.path(wd_dados, 'fauna_12_7_2015_rev2_R.txt')
+                  ,header = T, dec = '.', sep = '\t'
+                  ,quote = "", stringsAsFactors = F)
 head(data0)
 names(data0) <- tolower(names(data0))
 
@@ -38,14 +47,19 @@ data0$number[data0$number == 'tracks'] <- "1"
 data0 <- data0%>%
   mutate(number =as.numeric(number))
 
-#' Summary: observations by species
+
+#' Summary: Total observations by species
 data0 %>%
   dplyr::group_by(esp) %>%
   dplyr::summarise(obs=n()) %>%
-  dplyr::arrange(desc(obs))%>%
+  dplyr::arrange(desc(obs))
 
-#' Exportar dados
-write.table(data0, file = file.path(wd_data, 'fauna_12_7_2015_rev1_R.txt')
+#' Deal with dates ------------------------------------------------------------
+#' data0$date0 <- dmy(data0$date)
+#' data0$year <- year(data0$date[1])
+
+#' Export Dataset
+write.table(data0, file = file.path(wd_data, 'fauna_12_7_2015_rev1_R.csv')
             ,sep = '\t', row.names = F)
 
 #' Visualizar os dados espaciais ----------------------------------------------
