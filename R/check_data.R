@@ -5,17 +5,16 @@ if(length(new.packs)) install.packages(new.packs)
 lapply(kpacks, require, character.only=T)
 remove(kpacks, new.packs)
 
-#' Local folder: Alterar para a pasta local do Drive --------------------------
-wd_dados <- 'C:/Users/Carlos Bento/Google Drive/biogeo/data' # Estou aqui!!
+#' Local folder: Alterar para a pasta local do Drive -------------------
+wd_dados <- 'D:/Dropbox/programacao/mozbiogeo/data' # Estou aqui!!
 wd_geo <- 'D:/Sig/MozBiogeo/shp'
 
 #' Ler a base de dados de fauna em .csv [comma delimited] ---------------------
 data0 <- read.csv(file.path(wd_dados, 'fauna_12_7_2015_rev1.csv')
                   ,header = T, dec = '.', stringsAsFactors = F)
 head(data0)
+names(data0) <- tolower(names(data0))
 
-#wd_data <- 'C:/Users/Carlos Bento/Google Drive/biogeo/data'
-#names(data0) <- tolower(names(data0))
 data0 <- as.tbl(data0) %>%
   dplyr::select(-c(x,x.1))
 
@@ -39,9 +38,12 @@ data0$number[data0$number == 'tracks'] <- "1"
 data0 <- data0%>%
   mutate(number =as.numeric(number))
 
+#' Summary: observations by species
 data0 %>%
   dplyr::group_by(esp) %>%
-  summarise(obs=n())
+  dplyr::summarise(obs=n()) %>%
+  dplyr::arrange(desc(obs))%>%
+
 #' Exportar dados
 write.table(data0, file = file.path(wd_data, 'fauna_12_7_2015_rev1_R.txt')
             ,sep = '\t', row.names = F)
@@ -74,7 +76,7 @@ ggplot(data = mozdf, aes(x = long, y = lat, group = group)) +
   coord_map() +
   theme_bw()
 
-#' CRia objeto espacial a partir dos dados - classe spdf ----------------------
+#' Create SPDF object for Observations ----------------------------------------
 dadosg <- as.data.frame(data0)
 coordinates(dadosg) <- ~longitude+latitude
 proj4string(dadosg) <- CRS('+init=epsg:4326')

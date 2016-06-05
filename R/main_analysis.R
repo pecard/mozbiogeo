@@ -23,7 +23,7 @@ lapply(kpacks, require, character.only=T)
 remove(kpacks, new.packs)
 
 #' Local Folders Paulo: alterar para dados locais
-wd_dados <- 'D:/Programacao/biogeo/data'
+wd_dados <- 'D:/Dropbox/programacao/mozbiogeo/data'
 wd_geo <- 'D:/SIG/MozBiogeo/shp'
 wd_geo <- 'G:/SIG/MozBiogeo/shp' # pcardoso external drive
 
