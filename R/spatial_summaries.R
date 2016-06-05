@@ -11,15 +11,17 @@ data0$aprotegida <- p2[ ,1]
 
 #' Sumario dos Dados por Provincia --------------------------------------------
 sp_prov <- as.data.frame(data0 %>%
-                           dplyr::group_by(provincia) %>%
+                           dplyr::group_by(provincia, year) %>%
                            dplyr::summarise(nind = sum(number, na.rm = F)
                                             , nesp = length(unique(esp))
                                             , record = n()
                                             ) %>%
                            dplyr::arrange(desc(nind)) %>%
-                           filter(complete.cases(.))%>%
+                           dplyr::top_n(1, record)
+                           filter(complete.cases(.))
                            #filter(nind>1000) %>%
-                           tidyr::gather(provincia))
+                           tidyr::gather(provincia)
+                         )
 names(sp_prov)[2] <- 'var'
 ggplot(aes(x=reorder(provincia, -value), y=value), data=sp_prov) +
   geom_bar(stat="identity") +
@@ -38,11 +40,12 @@ ggsave(last_plot()
 
 #' Dados por AP ---------------------------------------------------------------
 sp_aprot <- as.data.frame(data0 %>%
-                            dplyr::group_by(aprotegida) %>%
+                            dplyr::group_by(aprotegida, year) %>%
                             dplyr::summarise(nind = sum(number, na.rm = F)
                                              ,nesp = length(unique(esp))
                                              ,record = n()) %>%
-                            dplyr::arrange(desc(nind)) #%>%
+                            dplyr::top_n(1, record)
+                            #dplyr::arrange(desc(record))
                             #filter(complete.cases(.))%>%
                             #filter(nesp>23) %>%
                             #tidyr::gather(aprotegida)
