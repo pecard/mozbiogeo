@@ -6,7 +6,7 @@ lapply(kpacks, require, character.only=T)
 remove(kpacks, new.packs)
 
 #' Local folder: Alterar para a pasta local do Drive -------------------
-wd_dados <- 'D:/Dropbox/programacao/mozbiogeo/data' # Estou aqui!!
+wd_dados <- 'D:/Dropbox/programacao/mozbiogeo_data' # Estou aqui!!
 wd_geo <- 'D:/Sig/MozBiogeo/shp'
 
 #' Ler a base de dados de fauna em .csv [comma delimited] ---------------------
@@ -92,6 +92,9 @@ data0$provincia <- p1[ ,1]
 p2 <- as.data.frame(sp::over(dadosg, pa[,'name']))
 data0$aprotegida <- p2[ ,1]
 
+#' Taxonomy: Basic info for taxonomic manipulation ----------------------------
+tax0 <- read.csv(file.path(wd_dados, 'taxonomia54.csv'), header = T, sep = ','
+                   ,stringsAsFactors = F)
 #' Sumarios graficos ----------------------------------------------------------
 write.table(
   data0 %>%
@@ -108,25 +111,29 @@ data0 %>%
   dplyr::left_join(tax0, by=c('species' = 'especie')) %>%
   #select_('id', 'species', 'grupo')
   #dplyr::summarise(n=sum(number, na.rm = F))
-  dplyr::filter(grupo == 'Carnívoro') %>%   #     <----------- Editar
-  dplyr::group_by(grupo, nomecomum) %>%     #     <----------- Editar
+  #dplyr::filter(grupo == 'Carnívoro') %>%   #     <----------- Editar
+  #dplyr::group_by(grupo, nomecomum) %>%     #     <----------- Editar
+  dplyr::group_by(nomecomum) %>%             #     <----------- Editar
   dplyr::summarise(n=sum(number, na.rm = F)) %>%
   #dplyr::ungroup()%>%
   #dplyr::select_('grupo', 'nomecomum', 'sciname', 'n')%>%
   dplyr::arrange(desc(n)) %>%
   #), quote=T ) %>%
   head(10) %>%
-  ggplot(aes(x=reorder(nomecomum, -n), y=n)) +
+  ggplot(aes(x=reorder(nomecomum, -n), y = n)) +
   geom_bar(stat="identity") +
   #facet_grid(.~grupo, scales = 'free') +
-  theme(axis.text.x=element_text(vjust = .2, angle=90))+
-  labs(y='N Indivíduos', x='Espécie', title = 'Carnívoros')
-
+  theme_classic() +
+  theme(axis.text.x=element_text(hjust = 0.3, vjust = -0.1
+                                 , angle=90 + 1e-01))+
+  labs(y='N. indivíduos', x='Espécie'
+       #, title = 'Carnívoros'
+       )
 #' Exporta o plot como imagem PNG para a pasta indicada no filename
 ggsave(last_plot()
-       , filename = 'D:/Programacao/biogeo/apresentacao/hist_carnivoros.png'
-       , width = 7.5
-       , height = 8
+       , filename = 'D:/Dropbox/programacao/mozbiogeo/png/hist_carnivoros.png'
+       , width = 7
+       , height = 6
        , units = 'cm',
        dpi=300)
 
