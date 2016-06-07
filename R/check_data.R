@@ -11,8 +11,11 @@ if(length(new.packs)) install.packages(new.packs)
 lapply(kpacks, require, character.only=T)
 remove(kpacks, new.packs)
 
+<<<<<<< HEAD
 #' Session Data
 #' /mozbiogeo_data/biogeo.RData
+=======
+>>>>>>> origin/master
 #' Local folder: Alterar para a pasta local do Drive -------------------
 wd_dados <- 'D:/Dropbox/programacao/mozbiogeo_data' # Estou aqui!!
 wd_geo <- 'D:/Sig/MozBiogeo/shp'
