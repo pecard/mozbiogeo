@@ -17,6 +17,7 @@ new.packs <- kpacks[!(kpacks %in% installed.packages()[,"Package"])]
 if(length(new.packs)) install.packages(new.packs)
 lapply(kpacks, require, character.only=T)
 
+
 #' Dados de distribuicao ------------------------------------------------------
 buf <- read.table(file.path(wd_dados, 'buffalo_moz.txt'),
                   header = T, sep = '\t',
