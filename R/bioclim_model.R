@@ -1,4 +1,5 @@
 #' Envelope Ambiental Bioclim
+#' Modelo Entropia Maxent
 #' Distribuicao com base em dados de presenca
 #' referencias:
 #' https://sites.google.com/site/rodriguezsanchezf/news/usingrasagis
@@ -16,6 +17,11 @@ new.packs <- kpacks[!(kpacks %in% installed.packages()[,"Package"])]
 if(length(new.packs)) install.packages(new.packs)
 lapply(kpacks, require, character.only=T)
 
+#' Dados de distribuicao ------------------------------------------------------
+buf <- read.table(file.path(wd_dados, 'buffalo_moz.txt'),
+                  header = T, sep = '\t',
+                  stringsAsFactors = F, dec = '.')
+
 #' Administrative Data GADM
 mz_adm <-getData('GADM', country='MOZ', level= 1)
 mz_adm <- fortify(mz_adm)
@@ -26,7 +32,6 @@ panet <- rgdal::readOGR('D:/Sig/MozBiogeo/shp', layer='MOZ_areas_protegidas_utm3
 panet <- spTransform(panet, CRS('+init=epsg:4326'))
 p_wgs84 <- CRS('+init=epsg:4326') # wgs84
 panetdf <- fortify(panet) #! spdf to dataframe
-
 
 #' Get Altitude data ----------------------------------------------------------
 alt <- getData('alt', country = 'MOZ', mask = F)
@@ -69,7 +74,10 @@ plot(wcl_mzsubset)
 pt <- buf[ ,3:4]
 names(pt) <- c('lon', 'lat')
 
-#' fit a Bioclim model ---------------------------------------------------------
+#' ggmap base layer
+ctry.map <- get_map('Mozambique', zoom = 6, source = 'google', maptype = "roadmap") 
+
+#' fit a BIOCLIM model --------------------------------------------------------
 bclim <- bioclim(wcl_mzsubset, pt[,3:4])
 
 #' predict Bioclim model to raster extent
@@ -81,8 +89,19 @@ t.pred <- data.frame(t.pred)
 colnames(t.pred) <- c("x",  "y", "Prob") # Coords: lat long
 head(t.pred)
 
+#'Plot
+ggplot() +
+  #ggmap(ao.map, extent = 'panel', darken = c(.8, "white")) +
+  geom_raster(aes(x = x, y = y, fill = Prob),
+              t.pred[t.pred$Prob != 0, ], alpha = .9) + 
+  geom_polygon(aes(long, lat, group = group),
+               data = mz_adm, colour = 'grey', fill = 'NA') +
+  coord_equal() +
+  theme_bw() +
+  scale_fill_gradientn('Prob\nBioclim model',
+                       colours = rev(c(terrain.colors(10)))) +
 #' ggmap base layer
-ctry.map <- get_map('Mozambique', zoom = 6, source = 'google', maptype = "roadmap") 
+#ctry.map <- get_map('Mozambique', zoom = 6, source = 'google', maptype = "roadmap") 
 
 ggplot() +
   #ggmap(ao.map, extent = 'panel', darken = c(.8, "white")) +
@@ -97,14 +116,10 @@ ggplot() +
   geom_point(inherit.aes = F, aes(x = long, y = lat), size = 2,
              alpha = 0.9, data = ptdec)
   
-#' MAXENT
-# witholding a 20% sample for testing 
-occurence <- paste(system.file(package="dismo"), '/ex/bradypus.csv', sep='')
-occ <- read.table(occurence, header=TRUE, sep=',')[,-1]
-fold <- kfold(occ, k=5)
-occtest <- occ[fold == 1, ]
-occtrain <- occ[fold != 1, ]
-
+#' Fit MAXENT model -----------------------------------------------------------
+#' Split samples for train and predict
+#' witholding a 20% sample for testing
+#' witholding a 20% sample for testing 
 fold <- kfold(pt, k=5)
 occtest <- pt[fold == 1, ]
 occtrain <- pt[fold != 1, ]
@@ -117,10 +132,15 @@ plot(rmax)
 t.predmax <- rasterToPoints(rmax) # Raster to dataframe
 t.predmax <- data.frame(t.predmax)
 colnames(t.predmax) <- c("x",  "y", "Prob") # Coords: lat long
+
+#' Plot
 ggplot() +
   #ggmap(ao.map, extent = 'panel', darken = c(.8, "white")) +
-  geom_raster(aes(x = x, y = y, fill = Prob), t.predmax[t.predmax$Prob != 0, ], alpha = .9) + 
-  geom_polygon(aes(long, lat, group = group), data = mz_adm, colour = 'grey', fill = 'NA') +
+  geom_raster(aes(x = x, y = y, fill = Prob),
+              t.predmax[t.predmax$Prob != 0, ], alpha = .9) + 
+  geom_polygon(aes(long, lat, group = group),
+               data = mz_adm, colour = 'grey', fill = 'NA') +
   coord_equal() +
   theme_bw() +
-  scale_fill_gradientn('Prob\nMaxent model', colours = rev(c(terrain.colors(10)))) 
+  scale_fill_gradientn('Prob\nMaxent model',
+                       colours = rev(c(terrain.colors(10))))
