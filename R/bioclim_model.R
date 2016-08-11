@@ -1,3 +1,4 @@
+#' 2016 Aug 11
 #' Envelope Ambiental Bioclim
 #' Modelo Entropia Maxent
 #' Distribuicao com base em dados de presenca
