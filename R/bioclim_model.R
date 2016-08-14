@@ -8,15 +8,21 @@
 #' http://www.molecularecologist.com/2013/04/species-distribution-models-in-r/
 #' http://cran.r-project.org/web/packages/dismo/vignettes/sdm.pdf
 
-save.image('..\\Distribution Models.RData')
-load('..\\Distribution Models.RData')
+save.image("D:/Dropbox/programacao/mozbiogeo_data/maxent-bioclim.RData")
+load('my/local/path/Distribution Models.RData')
 
-#' Packages necessarios
-kpacks <- c('ggplot2', 'scales', "ggmap",
-            "gridExtra", "gtable")
+#' Packages necessarios -------------------------------------------------------
+kpacks <- c('ggplot2', 'scales', 'ggmap',
+            'gridExtra', "gtable", 'dismo',
+            'raster' ,'virtualspecies', 'rasterVis')
 new.packs <- kpacks[!(kpacks %in% installed.packages()[,"Package"])]
 if(length(new.packs)) install.packages(new.packs)
 lapply(kpacks, require, character.only=T)
+remove(kpacks, new.packs)
+
+#' Set directories for conde and data
+wd_dados <- 'D:/Dropbox/programacao/mozbiogeo_data'
+wd_geo <- 'D:/SIG/MozBiogeo/shp'
 
 #' Dados de distribuicao ------------------------------------------------------
 buf <- read.table(file.path(wd_dados, 'buffalo_moz.txt'),
@@ -25,11 +31,11 @@ buf <- read.table(file.path(wd_dados, 'buffalo_moz.txt'),
 
 #' Administrative Data GADM
 mz_adm <-getData('GADM', country='MOZ', level= 1)
-mz_adm <- fortify(mz_adm)
+mz_admdf <- fortify(mz_adm)
 
-#' Protected Area Network
-'D:/Sig/MozBiogeo/shp/MOZ_areas_protegidas_utm36s.shp'
-panet <- rgdal::readOGR('D:/Sig/MozBiogeo/shp', layer='MOZ_areas_protegidas_utm36s')
+#' Protected Area Network -----------------------------------------------------
+panet <- rgdal::readOGR('D:/Sig/MozBiogeo/shp'
+                        , layer='MOZ_areas_protegidas_utm36s')
 panet <- spTransform(panet, CRS('+init=epsg:4326'))
 p_wgs84 <- CRS('+init=epsg:4326') # wgs84
 panetdf <- fortify(panet) #! spdf to dataframe
@@ -68,18 +74,44 @@ wcl_mz <- raster::crop(wcl, alt)
 altr <- resample(alt, wcl_mz, method = "ngb") # set uniform resolution
 
 wcl_mz <- addLayer(wcl_mz, altr) # add alt to rasterbrick
-wcl_mzsubset <- subset(wcl_mz, c(1, 5, 6, 7, 12, 15, 20))
-plot(wcl_mzsubset)
+
+#' Search and eliminate variable multicolinearity
+par(mar = rep(2, 4), cex = 0.6)
+set.seed(222)
+rasters.crop.reduced <- removeCollinearity(wcl_mz
+                                           , multicollinearity.cutoff = 0.65
+                                           ,select.variables = TRUE
+                                           , sample.points = FALSE
+                                           , plot = T)
+rasters.crop.reduced
+
+wcl_mzsubset <- subset(wcl_mz, rasters.crop.reduced)
+
+plot(wcl_mzsubset, legend=FALSE, axes=FALSE)
 
 #' Species data: coordinates in decimal degrees!
+#' Remove Nas and cell duplicated entries
 pt <- buf[ ,3:4]
 names(pt) <- c('lon', 'lat')
+pt$cell <- extract(wcl_mzsubset, pt, cellnumbers=T)[ ,1]
+pt <- pt[!is.na(pt$cell), ] # remove NA
+pt[is.na(pt), ] # check NA presence
+pt <- pt[!duplicated(pt$cell), ]
+pt <- pt[ ,-3] # Remover colulas cell
 
+fvirpt <- function(x){
+  vsp <- x
+  coordinates(vsp) <- ~lon+lat
+  return(vsp)
+}
+
+levelplot(wcl_mzsubset[[1]], margin=FALSE)+
+  layer(sp.points(fvirpt(pt)))
 #' ggmap base layer
 ctry.map <- get_map('Mozambique', zoom = 6, source = 'google', maptype = "roadmap") 
 
 #' fit a BIOCLIM model --------------------------------------------------------
-bclim <- bioclim(wcl_mzsubset, pt[,3:4])
+bclim <- bioclim(wcl_mzsubset, pt[ ,-3])
 
 #' predict Bioclim model to raster extent
 pred <- predict(bclim, wcl_mzsubset, ext = wcl_mzsubset)
@@ -100,7 +132,7 @@ ggplot() +
   coord_equal() +
   theme_bw() +
   scale_fill_gradientn('Prob\nBioclim model',
-                       colours = rev(c(terrain.colors(10)))) +
+                       colours = rev(c(terrain.colors(10))))
 #' ggmap base layer
 #ctry.map <- get_map('Mozambique', zoom = 6, source = 'google', maptype = "roadmap") 
 
@@ -120,12 +152,45 @@ ggplot() +
 #' Fit MAXENT model -----------------------------------------------------------
 #' Split samples for train and predict
 #' witholding a 20% sample for testing
-#' witholding a 20% sample for testing 
 fold <- kfold(pt, k=5)
 occtest <- pt[fold == 1, ]
 occtrain <- pt[fold != 1, ]
 
-me <- maxent(wcl_mzsubset, occtrain)
+#' Run Maxent on envvars, dist data and bckgd data
+me <- dismo::maxent(x = wcl_mzsubset, p = occtrain[ ,-3]
+                    , removeDuplicates = T
+                    , args = c('-J', '-P'))
+me # open html model output
+plot(me)
+response(me)
+
+#' Testing Maxent model with background data ----------------------------------
+bg <- randomPoints(wcl_mzsubset, 1000)
+
+#' 1# Simple test with 'evaluate'
+e1 <- evaluate(me, p=occtest[ ,-3], a=bg, x=wcl_mzsubset)
+e1
+
+# 2# alternative 1
+# extract values
+pvtest <- data.frame(extract(wcl_mzsubset, occtest[ ,-3]))
+avtest <- data.frame(extract(wcl_mzsubset, bg))
+
+e2 <- evaluate(me, p=pvtest, a=avtest)
+e2
+
+#' 3# alternative 2 
+# predict to testing points 
+testp <- predict(me, pvtest)
+head(testp)
+testa <- predict(me, avtest) 
+
+e3 <- evaluate(p=testp, a=testa)
+e3
+threshold(e3)
+plot(e3, 'ROC')
+
+#' Predic to entire dataset ---------------------------------------------------
 rmax <- predict(me, wcl_mzsubset)
 plot(rmax)
 
