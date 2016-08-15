@@ -2,16 +2,21 @@
 #' Envelope Ambiental Bioclim
 #' Modelo Entropia Maxent
 #' Distribuicao com base em dados de presenca
-#' referencias:
+#' References -----------------------------------------------------------------
+#'# SDM
 #' https://sites.google.com/site/rodriguezsanchezf/news/usingrasagis
 #' http://vertnet.org/about/BITW-2012/DAY2/sdm_9_niche_demo.R
 #' http://www.molecularecologist.com/2013/04/species-distribution-models-in-r/
 #' http://cran.r-project.org/web/packages/dismo/vignettes/sdm.pdf
+#'# Maxent
+#' http://web2.uconn.edu/cyberinfra/module3/Downloads/Day%204%20-%20Maxent.pdf
+#' file:///D:/Downloads/philips_tutorial.pdf
+#' https://cran.r-project.org/web/packages/MaxentVariableSelection/vignettes/MaxentVariableSelection.pdf
 
 save.image("D:/Dropbox/programacao/mozbiogeo_data/maxent-bioclim.RData")
-load('my/local/path/Distribution Models.RData')
+load('D:/Dropbox/programacao/mozbiogeo_data/maxent-bioclim.RData')
 
-#' Packages necessarios -------------------------------------------------------
+#' Packages -------------------------------------------------------------------
 kpacks <- c('ggplot2', 'scales', 'ggmap',
             'gridExtra', "gtable", 'dismo',
             'raster' ,'virtualspecies', 'rasterVis')
@@ -134,21 +139,9 @@ ggplot() +
   scale_fill_gradientn('Prob\nBioclim model',
                        colours = rev(c(terrain.colors(10))))
 #' ggmap base layer
-#ctry.map <- get_map('Mozambique', zoom = 6, source = 'google', maptype = "roadmap") 
+#ctry.map <- get_map('Mozambique', zoom = 6, source = 'google'
+#                    , maptype = "roadmap") 
 
-ggplot() +
-  #ggmap(ao.map, extent = 'panel', darken = c(.8, "white")) +
-  geom_raster(aes(x = x, y = y, fill = Prob), t.pred[t.pred$Prob != 0, ], alpha = .9) + 
-  geom_polygon(aes(long, lat, group = group), data = mz_adm, colour = 'grey', fill = 'NA') +
-  coord_equal() +
-  theme_bw() +
-  scale_fill_gradientn('Prob\nBioclim model', colours = rev(c(terrain.colors(10)))) +
-  #geom_polygon(inherit.aes = F, aes(x = long, y = lat, group = id),
-  #             colour = 'NA', fill = 'darkblue', alpha = 0.2, size = 0.2,
-  #             data = pandf)+
-  geom_point(inherit.aes = F, aes(x = long, y = lat), size = 2,
-             alpha = 0.9, data = ptdec)
-  
 #' Fit MAXENT model -----------------------------------------------------------
 #' Split samples for train and predict
 #' witholding a 20% sample for testing
