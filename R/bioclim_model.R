@@ -190,8 +190,11 @@ e3
 threshold(e3)
 plot(e3, 'ROC')
 
-#' Predic to entire dataset ---------------------------------------------------
-rmax <- predict(me, wcl_mzsubset)
+#' Predic to entire Area ------------------------------------------------------
+rmax <- dismo::predict(me, wcl_mzsubset
+                       , progress='text' 
+                       , filename='D:/Dropbox/programacao/mozbiogeo/png/maxent_prediction.tif'
+                       , overwrite = T)
 plot(rmax)
 
 #' Convert to ggplot dataframe
