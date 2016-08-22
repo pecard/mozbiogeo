@@ -206,3 +206,32 @@ ggplot() +
   theme_bw() +
   scale_fill_gradientn('Prob\nMaxent model',
                        colours = rev(c(terrain.colors(10))))
+
+#' FFT Fast Frugal Trees ------------------------------------------------------
+#rmax <- raster('C:/Users/PCardoso/Google Drive/Programacao/r/mozbiogeo/maxent_prediction.tif')
+#' Presences
+pt_p <- pt
+pt_p <- as.data.frame(extract(wcl_mzsubset, pt))
+pt_p$pres <- TRUE
+#rmax <- raster('C:/Users/PCardoso/Google Drive/Programacao/r/mozbiogeo/maxent_prediction.tif')
+pt_p$prob <- extract(rmax, pt)
+#' Pseudo Absences
+pt_a <- bg
+pt_a <- as.data.frame(extract(wcl_mzsubset, bg))
+pt_a$pres <- FALSE
+pt_a$prob <- extract(rmax, bg)
+#pt_a <- pt_a[order(pt_a$prob, decreasing = F), ]
+pt_a <- pt_a[pt_a$prob < 0.1, ]
+#' Overall matrix with Presence and pseudo absences
+ptpa <- rbind(pt_a, pt_p)
+ptpa <- ptpa[ ,-9]
+
+ptfft <- FFTrees::fft(formula = pres ~.
+                      ,data = ptpa
+                      ,train.p = .25)
+ptfft
+ptfft$auc
+plot(ptfft, 
+     main = "Probability of Occurrence", 
+     decision.names = c("Present", "Absent"))
+
