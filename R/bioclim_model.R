@@ -19,7 +19,7 @@ load('D:/Dropbox/programacao/mozbiogeo_data/maxent-bioclim.RData')
 #' Packages -------------------------------------------------------------------
 kpacks <- c('ggplot2', 'scales', 'ggmap',
             'gridExtra', "gtable", 'dismo',
-            'raster' ,'virtualspecies', 'rasterVis')
+            'raster' ,'virtualspecies', 'rasterVis', 'FFTrees')
 new.packs <- kpacks[!(kpacks %in% installed.packages()[,"Package"])]
 if(length(new.packs)) install.packages(new.packs)
 lapply(kpacks, require, character.only=T)
@@ -145,14 +145,19 @@ ggplot() +
 #' Fit MAXENT model -----------------------------------------------------------
 #' Split samples for train and predict
 #' witholding a 20% sample for testing
+set.seed(123)
 fold <- kfold(pt, k=5)
 occtest <- pt[fold == 1, ]
 occtrain <- pt[fold != 1, ]
 
-#' Run Maxent on envvars, dist data and bckgd data
+#' Run Maxent on train set and envvars
 me <- dismo::maxent(x = wcl_mzsubset, p = occtrain[ ,-3]
                     , removeDuplicates = T
                     , args = c('-J', '-P'))
+me <- dismo::maxent(x = wcl_mzsubset, p = pt[ ,-3]
+                    , removeDuplicates = T
+                    , args = c('-J', '-P'))
+
 me # open html model output
 plot(me)
 response(me)
@@ -186,11 +191,11 @@ plot(e3, 'ROC')
 #' Predic to entire Area ------------------------------------------------------
 rmax <- dismo::predict(me, wcl_mzsubset
                        , progress='text' 
-                       , filename='D:/Dropbox/programacao/mozbiogeo/png/maxent_prediction.tif'
+                       , filename='D:/Dropbox/programacao/mozbiogeo/png/maxent_prediction_all.tif'
                        , overwrite = T)
 plot(rmax)
 
-#' Convert to ggplot dataframe
+#' Plot with ggplot - to ggplot dataframe
 t.predmax <- rasterToPoints(rmax) # Raster to dataframe
 t.predmax <- data.frame(t.predmax)
 colnames(t.predmax) <- c("x",  "y", "Prob") # Coords: lat long
