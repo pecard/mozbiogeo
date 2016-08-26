@@ -7,6 +7,7 @@ lapply(kpacks, require, character.only=T)
 remove(kpacks, new.packs)
 
 #save.image("D:/Programacao/biogeo/NASAFIRMS_2005-2015.RData")
+
 load("D:/Programacao/biogeo/NASAFIRMS_2005-2015.RData")
 wd_geo <- 'D:/SIG/MozBiogeo/shp'
 

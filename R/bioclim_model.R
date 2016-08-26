@@ -211,6 +211,27 @@ ggplot() +
   theme_bw() +
   scale_fill_gradientn('Prob\nMaxent model',
                        colours = rev(c(terrain.colors(10))))
+#' Fires ----------------------------------------------------------------------
+fire <- rgdal::readOGR(dsn=file.path('D:/Sig/MozBiogeo/shp/firms')
+                       ,layer = 'firms218371430920801_MCD14ML'
+                       ,stringsAsFactors=F)
+fire@data$ACQ_DATE <- ymd(fire@data$ACQ_DATE)
+fire@data$YEAR <- year(fire@data$ACQ_DATE)
+fire@data$MONTH <- lubridate::month(fire@data$ACQ_DATE)
+rfire <- rasterize(fire, wcl_mzsubset, field = 'N', 'count')
+rfire[is.na(rfire)] <- 0
+writeRaster(rfire, file.path(wd_dados, 'fires_2000-11-01_2015-02-27.tif'),
+            overwrite=TRUE)
+plot(rfire)
+
+#' AFRIPOP UN Adjusted --------------------------------------------------------
+#' UNITS: Estimated persons per grid square
+pop <- raster('F:/Sig/Mozbiogeo/raster/MOZ-POP/MOZ15adjv4.tif')
+pop <- aggregate(pop, fun = 'sum', fact=5)
+pop <- resample(pop, wcl_mzsubset, method = 'ngb'
+                , filename = file.path(wd_dados, 'popmoz2015.tif'),
+                overwrite=TRUE)
+compareRaster(pop, wcl_mzsubset)
 
 #' FFT Fast Frugal Trees ------------------------------------------------------
 #rmax <- raster('C:/Users/PCardoso/Google Drive/Programacao/r/mozbiogeo/maxent_prediction.tif')
