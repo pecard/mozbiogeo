@@ -35,6 +35,28 @@ buf <- read.table(file.path(wd_dados, 'buffalo_moz.txt'),
                   stringsAsFactors = F, dec = '.')
 
 #' Administrative Data GADM
+#' Species data: coordinates in decimal degrees!
+#' Remove Nas and cell duplicated entries
+pt <- buf[ ,3:4]
+names(pt) <- c('lon', 'lat')
+pt$cell <- extract(wcl_mzsubset, pt, cellnumbers=T)[ ,1]
+pt <- pt[!is.na(pt$cell), ] # remove NA
+pt[is.na(pt), ] # check NA presence
+pt <- pt[!duplicated(pt$cell), ]
+pt <- pt[ ,-3] # Remover colulas cell
+
+fvirpt <- function(x){
+  vsp <- x
+  coordinates(vsp) <- ~lon+lat
+  return(vsp)
+}
+
+levelplot(wcl_mzsubset[[1]], margin=FALSE)+
+  layer(sp.points(fvirpt(pt)))
+#' ggmap base layer
+ctry.map <- get_map('Mozambique', zoom = 6, source = 'google', maptype = "roadmap") 
+
+# Political boundaries from GADM Global Adminsitrative Data -------------------
 mz_adm <-getData('GADM', country='MOZ', level= 1)
 mz_admdf <- fortify(mz_adm)
 
@@ -80,7 +102,7 @@ altr <- resample(alt, wcl_mz, method = "ngb") # set uniform resolution
 
 wcl_mz <- addLayer(wcl_mz, altr) # add alt to rasterbrick
 
-#' Search and eliminate variable multicolinearity
+#' Search and eliminate variable multicolinearity in Bioclim Vars -------------
 par(mar = rep(2, 4), cex = 0.6)
 set.seed(222)
 rasters.crop.reduced <- removeCollinearity(wcl_mz
@@ -94,26 +116,35 @@ wcl_mzsubset <- subset(wcl_mz, rasters.crop.reduced)
 
 plot(wcl_mzsubset, legend=FALSE, axes=FALSE)
 
-#' Species data: coordinates in decimal degrees!
-#' Remove Nas and cell duplicated entries
-pt <- buf[ ,3:4]
-names(pt) <- c('lon', 'lat')
-pt$cell <- extract(wcl_mzsubset, pt, cellnumbers=T)[ ,1]
-pt <- pt[!is.na(pt$cell), ] # remove NA
-pt[is.na(pt), ] # check NA presence
-pt <- pt[!duplicated(pt$cell), ]
-pt <- pt[ ,-3] # Remover colulas cell
+#' Fires ----------------------------------------------------------------------
+fire <- rgdal::readOGR(dsn=file.path('D:/Sig/MozBiogeo/shp/firms')
+                       ,layer = 'firms218371430920801_MCD14ML'
+                       ,stringsAsFactors=F)
+fire@data$ACQ_DATE <- ymd(fire@data$ACQ_DATE)
+fire@data$YEAR <- year(fire@data$ACQ_DATE)
+fire@data$MONTH <- lubridate::month(fire@data$ACQ_DATE)
+rfire <- rasterize(fire, wcl_mzsubset, field = 'N', 'count')
+rfire[is.na(rfire)] <- 0
+rfire@data@names <- "nfires"
+writeRaster(rfire, file.path(wd_dados, 'fires_2000-11-01_2015-02-27.tif'),
+            overwrite=TRUE)
+plot(rfire)
 
-fvirpt <- function(x){
-  vsp <- x
-  coordinates(vsp) <- ~lon+lat
-  return(vsp)
-}
+#' AFRIPOP UN Adjusted --------------------------------------------------------
+#' UNITS: Estimated persons per grid square
+pop <- raster('F:/Sig/Mozbiogeo/raster/MOZ-POP/MOZ15adjv4.tif')
+pop <- aggregate(pop, fun = 'sum', fact=5)
+pop <- resample(pop, wcl_mzsubset, method = 'ngb'
+                , filename = file.path(wd_dados, 'popmoz2015.tif'),
+                overwrite=TRUE)
+pop@data@names <- "pop2015"
+compareRaster(pop, wcl_mzsubset)
 
-levelplot(wcl_mzsubset[[1]], margin=FALSE)+
-  layer(sp.points(fvirpt(pt)))
-#' ggmap base layer
-ctry.map <- get_map('Mozambique', zoom = 6, source = 'google', maptype = "roadmap") 
+#' Collection of environmental Vars
+wcl_mzsubst_mod <- mask(wcl_mzsubset, mz_adm)
+#' With 'Human' variables
+wcl_mzsubst_mod <- addLayer(wcl_mzsubset, pop, rfire)
+wcl_mzsubst_mod <- mask(wcl_mzsubst_mod, mz_adm)
 
 #' fit a BIOCLIM model --------------------------------------------------------
 bclim <- bioclim(wcl_mzsubset, pt[ ,-3])
@@ -151,30 +182,30 @@ occtest <- pt[fold == 1, ]
 occtrain <- pt[fold != 1, ]
 
 #' Run Maxent on train set and envvars
-me <- dismo::maxent(x = wcl_mzsubset, p = occtrain[ ,-3]
+me <- dismo::maxent(x = wcl_mzsubst_mod, p = occtrain[ ,-3]
                     , removeDuplicates = T
                     , args = c('-J', '-P'))
-me <- dismo::maxent(x = wcl_mzsubset, p = pt[ ,-3]
-                    , removeDuplicates = T
-                    , args = c('-J', '-P'))
+#me <- dismo::maxent(x = wcl_mzsubset, p = pt[ ,-3]
+#                    , removeDuplicates = T
+#                    , args = c('-J', '-P'))
 
 me # open html model output
 plot(me)
 response(me)
 
 #' Testing Maxent model with background data ----------------------------------
-bg <- randomPoints(wcl_mzsubset, 1000)
+bg <- randomPoints(wcl_mzsubst_mod, 5000)
 
 #' 1# Simple test with 'evaluate'
-e1 <- evaluate(me, p=occtest[ ,-3], a=bg, x=wcl_mzsubset)
+e1 <- evaluate(me, p=occtest[ ,-3], a = bg, x = wcl_mzsubst_mod)
 e1
 
-# 2# alternative 1
+#' 2# alternative 1
 # extract values
-pvtest <- data.frame(extract(wcl_mzsubset, occtest[ ,-3]))
-avtest <- data.frame(extract(wcl_mzsubset, bg))
+pvtest <- data.frame(extract(wcl_mzsubst_mod, occtest[ ,-3]))
+avtest <- data.frame(extract(wcl_mzsubst_mod, bg))
 
-e2 <- evaluate(me, p=pvtest, a=avtest)
+e2 <- evaluate(me, p = pvtest, a=avtest)
 e2
 
 #' 3# alternative 2 
@@ -189,11 +220,12 @@ threshold(e3)
 plot(e3, 'ROC')
 
 #' Predic to entire Area ------------------------------------------------------
-rmax <- dismo::predict(me, wcl_mzsubset
-                       , progress='text' 
-                       , filename='D:/Dropbox/programacao/mozbiogeo/png/maxent_prediction_all.tif'
-                       , overwrite = T)
-plot(rmax)
+rmax <- dismo::predict(me, wcl_mzsubst_mod
+                       , progress='text')
+
+writeRaster(rmax
+            ,filename='D:/Dropbox/programacao/mozbiogeo/png/maxent_prediction_all.tif'
+            ,overwrite = T)
 
 #' Plot with ggplot - to ggplot dataframe
 t.predmax <- rasterToPoints(rmax) # Raster to dataframe
@@ -211,27 +243,6 @@ ggplot() +
   theme_bw() +
   scale_fill_gradientn('Prob\nMaxent model',
                        colours = rev(c(terrain.colors(10))))
-#' Fires ----------------------------------------------------------------------
-fire <- rgdal::readOGR(dsn=file.path('D:/Sig/MozBiogeo/shp/firms')
-                       ,layer = 'firms218371430920801_MCD14ML'
-                       ,stringsAsFactors=F)
-fire@data$ACQ_DATE <- ymd(fire@data$ACQ_DATE)
-fire@data$YEAR <- year(fire@data$ACQ_DATE)
-fire@data$MONTH <- lubridate::month(fire@data$ACQ_DATE)
-rfire <- rasterize(fire, wcl_mzsubset, field = 'N', 'count')
-rfire[is.na(rfire)] <- 0
-writeRaster(rfire, file.path(wd_dados, 'fires_2000-11-01_2015-02-27.tif'),
-            overwrite=TRUE)
-plot(rfire)
-
-#' AFRIPOP UN Adjusted --------------------------------------------------------
-#' UNITS: Estimated persons per grid square
-pop <- raster('F:/Sig/Mozbiogeo/raster/MOZ-POP/MOZ15adjv4.tif')
-pop <- aggregate(pop, fun = 'sum', fact=5)
-pop <- resample(pop, wcl_mzsubset, method = 'ngb'
-                , filename = file.path(wd_dados, 'popmoz2015.tif'),
-                overwrite=TRUE)
-compareRaster(pop, wcl_mzsubset)
 
 #' FFT Fast Frugal Trees ------------------------------------------------------
 #rmax <- raster('C:/Users/PCardoso/Google Drive/Programacao/r/mozbiogeo/maxent_prediction.tif')
