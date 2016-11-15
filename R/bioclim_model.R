@@ -68,7 +68,7 @@ p_wgs84 <- CRS('+init=epsg:4326') # wgs84
 panetdf <- fortify(panet) #! spdf to dataframe
 
 #' Get Altitude data ----------------------------------------------------------
-alt <- getData('alt', country = 'MOZ', mask = F)
+alt <- raster::getData('alt', country = 'MOZ', mask = F)
 plot(alt)
 
 #' Climate data ----------------------------------------------------------------
@@ -140,10 +140,19 @@ pop <- resample(pop, wcl_mzsubset, method = 'ngb'
 pop@data@names <- "pop2015"
 compareRaster(pop, wcl_mzsubset)
 
+#' Human Footprint
+hfp <- raster('D:/Sig/Raster/HumanFootprint/hfp2009_moz.tif')
+hfp <- crop(hfp, wcl_mzsubset)
+hfp <- aggregate(hfp, fun = 'mean', fact=5)
+hfp <- resample(hfp, wcl_mzsubset, method = 'ngb'
+                , filename = file.path(wd_dados, 'hfp2009_moz.tif'),
+                overwrite=TRUE)
+compareRaster(pop, wcl_mzsubset)
+
 #' Collection of environmental Vars
 wcl_mzsubst_mod <- mask(wcl_mzsubset, mz_adm)
 #' With 'Human' variables
-wcl_mzsubst_mod <- addLayer(wcl_mzsubset, pop, rfire)
+wcl_mzsubst_mod <- addLayer(wcl_mzsubset, pop, rfire, hfp)
 wcl_mzsubst_mod <- mask(wcl_mzsubst_mod, mz_adm)
 
 #' fit a BIOCLIM model --------------------------------------------------------
@@ -191,14 +200,16 @@ me <- dismo::maxent(x = wcl_mzsubst_mod, p = occtrain[ ,-3]
 
 me # open html model output
 plot(me)
-response(me)
+dismo::response(me)
+
+dismo::threshold
 
 #' Testing Maxent model with background data ----------------------------------
 bg <- randomPoints(wcl_mzsubst_mod, 5000)
 
 #' 1# Simple test with 'evaluate'
 e1 <- evaluate(me, p=occtest[ ,-3], a = bg, x = wcl_mzsubst_mod)
-e1
+threshold(e1)
 
 #' 2# alternative 1
 # extract values
@@ -223,8 +234,21 @@ plot(e3, 'ROC')
 rmax <- dismo::predict(me, wcl_mzsubst_mod
                        , progress='text')
 
+#' Calculate areas for specific Suitability intervals
+sintervals <- c(0, .2, .4, .6, .8, 1) 
+rmaxcut <- cut(rmax, sintervals, include.lowest = TRUE)
+akm2 <- mean(getValues(area(rmaxcut)), na.rm=T)
+
+tfreq <- data.frame(freq(rmaxcut, merge=TRUE))
+tfreq$areakm2 <- tfreq$count * akm2
+tfreq <- tfreq[complete.cases(tfreq), ]
+tfreq
+sum(tfreq$areakm2)
+#' test cut
+cut(seq(0,1,by=0.05), c(0,0.2,0.8,1), include.lowest=T)
+
 writeRaster(rmax
-            ,filename='D:/Dropbox/programacao/mozbiogeo/png/maxent_prediction_all.tif'
+            ,filename='D:/Dropbox/programacao/mozbiogeo/png/maxent_pred_bio_hum.tif'
             ,overwrite = T)
 
 #' Plot with ggplot - to ggplot dataframe
